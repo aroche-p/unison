@@ -2,12 +2,17 @@
 
 module Unison.Test.Runtime.Process (test) where
 
+#ifdef linux_HOST_OS
 import Control.Concurrent (threadDelay)
+import Control.Monad (replicateM_)
+#endif
 import EasyTest
 import System.Exit (ExitCode (ExitSuccess))
 import System.IO (Handle)
-import System.Process (ProcessHandle, readCreateProcessWithExitCode, shell, waitForProcess)
-import Unison.Prelude
+import System.Process (ProcessHandle, waitForProcess)
+#ifdef linux_HOST_OS
+import System.Process (readCreateProcessWithExitCode, shell)
+#endif
 import Unison.Runtime.Foreign.Function (ForeignConvention (decodeVal, encodeVal), foreignCall)
 import Unison.Runtime.Foreign.Function.Type (ForeignFunc (IO_process_start))
 import Unison.Runtime.MCode (Args (VArg2))
