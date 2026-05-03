@@ -20,7 +20,7 @@ test =
 #ifdef linux_HOST_OS
     scope "dropped handles are reaped" do
       io $ replicateM_ 10 $ uncurry startProcessWithReaper successfulCommand
-      io $ threadDelay 1_000_000
+      io $ threadDelay 1000000
       count <- io zombieChildCount
       expectEqual 0 count
 #endif
