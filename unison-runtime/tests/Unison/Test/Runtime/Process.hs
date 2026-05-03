@@ -55,12 +55,24 @@ zombieChildCount :: IO Int
 zombieChildCount = do
   (exitCode, stdout, stderr) <-
     readCreateProcessWithExitCode
-      (shell "ps -axo ppid=,stat= | awk -v p=\"$PPID\" '$1 == p && $2 ~ /^Z/ { count++ } END { print count + 0 }'")
+      (shell "printf '%s\\n' \"$PPID\"; ps -axo ppid=,stat=")
       ""
   case exitCode of
     ExitSuccess ->
-      case reads stdout of
-        [(count, _)] -> pure count
-        _ -> fail $ "Could not parse zombie child count from: " <> show stdout
+      case lines stdout of
+        parentLine : childLines ->
+          case reads parentLine of
+            [(parentPid, "")] -> pure . length $ filter (isZombieChild parentPid) childLines
+            _ -> fail $ "Could not parse parent pid from: " <> show parentLine
+        [] -> fail "Could not parse process table output"
     _ -> fail $ "Could not count zombie children: " <> stderr
+
+isZombieChild :: Int -> String -> Bool
+isZombieChild parentPid line =
+  case words line of
+    ppidText : stat : _ ->
+      case reads ppidText of
+        [(ppid, "")] -> ppid == parentPid && take 1 stat == "Z"
+        _ -> False
+    _ -> False
 #endif
