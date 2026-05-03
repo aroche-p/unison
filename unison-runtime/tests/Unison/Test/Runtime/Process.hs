@@ -2,7 +2,7 @@
 
 module Unison.Test.Runtime.Process (test) where
 
-#ifdef linux_HOST_OS
+#if defined(linux_HOST_OS) || defined(darwin_HOST_OS)
 import Control.Concurrent (threadDelay)
 import Control.Monad (replicateM_)
 #endif
@@ -10,7 +10,7 @@ import EasyTest
 import System.Exit (ExitCode (ExitSuccess))
 import System.IO (Handle)
 import System.Process (ProcessHandle, waitForProcess)
-#ifdef linux_HOST_OS
+#if defined(linux_HOST_OS) || defined(darwin_HOST_OS)
 import System.Process (readCreateProcessWithExitCode, shell)
 #endif
 import Unison.Runtime.Foreign.Function (ForeignConvention (decodeVal, encodeVal), foreignCall)
@@ -27,7 +27,7 @@ test =
       exitCode <- io $ waitForProcess ph
       expectEqual ExitSuccess exitCode
 
-#ifdef linux_HOST_OS
+#if defined(linux_HOST_OS) || defined(darwin_HOST_OS)
     scope "dropped handles are reaped" do
       io $ replicateM_ 10 $ startInteractiveProcessViaForeignCall successfulCommand
       io $ threadDelay 1000000
@@ -50,12 +50,12 @@ successfulCommand = ("cmd", ["/c", "exit", "/b", "0"])
 successfulCommand = ("/bin/sh", ["-c", "exit 0"])
 #endif
 
-#ifdef linux_HOST_OS
+#if defined(linux_HOST_OS) || defined(darwin_HOST_OS)
 zombieChildCount :: IO Int
 zombieChildCount = do
   (exitCode, stdout, stderr) <-
     readCreateProcessWithExitCode
-      (shell "ps --ppid \"$PPID\" -o stat= | awk '$1 ~ /^Z/ { count++ } END { print count + 0 }'")
+      (shell "ps -axo ppid=,stat= | awk -v p=\"$PPID\" '$1 == p && $2 ~ /^Z/ { count++ } END { print count + 0 }'")
       ""
   case exitCode of
     ExitSuccess ->
