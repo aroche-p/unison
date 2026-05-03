@@ -167,8 +167,8 @@ import System.IO as SYS
   )
 import System.IO.Temp (createTempDirectory)
 import System.Process as SYS
-  ( getProcessExitCode,
-    ProcessHandle,
+  ( ProcessHandle,
+    getProcessExitCode,
     proc,
     runInteractiveProcess,
     terminateProcess,
