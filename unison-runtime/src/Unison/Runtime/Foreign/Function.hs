@@ -7,6 +7,7 @@
 module Unison.Runtime.Foreign.Function
   ( ForeignConvention (..),
     foreignCall,
+    startProcessWithReaper,
     readsAtError,
     foreignConventionError,
     pseudoConstructors,
@@ -167,6 +168,7 @@ import System.IO as SYS
 import System.IO.Temp (createTempDirectory)
 import System.Process as SYS
   ( getProcessExitCode,
+    ProcessHandle,
     proc,
     runInteractiveProcess,
     terminateProcess,
@@ -223,6 +225,19 @@ import UnliftIO qualified
 foreignCall :: ForeignFunc -> Args -> XStack -> IOEXStack
 foreignCall !ff !args !xstk =
   estackIOToIOX $ foreignCallHelper ff args (packXStack xstk)
+
+startProcessWithReaper :: FilePath -> [String] -> IO (Handle, Handle, Handle, ProcessHandle)
+startProcessWithReaper exe args = do
+  handles@(_, _, _, ph) <- runInteractiveProcess exe args Nothing Nothing
+  -- Best-effort reaper for the OS-level child. Without this, if user-space
+  -- code drops the ProcessHandle without calling IO.process.wait or
+  -- IO.process.kill, the child becomes a zombie under the long-lived UCM/MCP
+  -- host process (see #6175). waitForProcess is concurrent-safe in
+  -- System.Process: a subsequent IO.process.wait from user-space serializes
+  -- on the handle's MVar and returns the same exit code, so semantics for
+  -- well-behaved programs are unchanged.
+  _ <- forkIO $ void $ waitForProcess ph
+  pure handles
 
 {-# INLINE foreignCallHelper #-}
 foreignCallHelper :: ForeignFunc -> Args -> Stack -> IO (Bool, Stack)
@@ -417,17 +432,8 @@ foreignCallHelper = \case
     \(exe, map Util.Text.unpack -> args) ->
       withCreateProcess (proc exe args) $ \_ _ _ p ->
         exitDecode <$> waitForProcess p
-  IO_process_start -> mkForeign $ \(exe, map Util.Text.unpack -> args) -> do
-    handles@(_, _, _, ph) <- runInteractiveProcess exe args Nothing Nothing
-    -- Best-effort reaper for the OS-level child. Without this, if user-space
-    -- code drops the ProcessHandle without calling IO.process.wait or
-    -- IO.process.kill, the child becomes a zombie under the long-lived UCM/MCP
-    -- host process (see #6175). waitForProcess is concurrent-safe in
-    -- System.Process: a subsequent IO.process.wait from user-space serializes
-    -- on the handle's MVar and returns the same exit code, so semantics for
-    -- well-behaved programs are unchanged.
-    _ <- forkIO $ void $ waitForProcess ph
-    pure handles
+  IO_process_start -> mkForeign $ \(exe, map Util.Text.unpack -> args) ->
+    startProcessWithReaper exe args
   IO_process_kill -> mkForeign $ terminateProcess
   IO_process_wait -> mkForeign $
     \ph -> exitDecode <$> waitForProcess ph
