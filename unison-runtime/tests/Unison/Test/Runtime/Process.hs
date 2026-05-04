@@ -7,6 +7,9 @@ import Control.Concurrent (threadDelay)
 import Control.Monad (replicateM_)
 #endif
 import EasyTest
+#ifdef mingw32_HOST_OS
+import System.Environment (getEnv)
+#endif
 import System.Exit (ExitCode (ExitSuccess))
 import System.IO (Handle)
 import System.Process (ProcessHandle, waitForProcess)
@@ -23,13 +26,14 @@ test :: Test ()
 test =
   scope "process" do
     scope "explicit wait" do
-      (_, _, _, ph) <- io $ startInteractiveProcessViaForeignCall successfulCommand
+      (_, _, _, ph) <- io $ startInteractiveProcessViaForeignCall =<< successfulCommand
       exitCode <- io $ waitForProcess ph
       expectEqual ExitSuccess exitCode
 
 #if defined(linux_HOST_OS) || defined(darwin_HOST_OS)
     scope "dropped handles are reaped" do
-      io $ replicateM_ 10 $ startInteractiveProcessViaForeignCall successfulCommand
+      cmd <- io successfulCommand
+      io $ replicateM_ 10 $ startInteractiveProcessViaForeignCall cmd
       io $ threadDelay 1000000
       count <- io zombieChildCount
       expectEqual 0 count
@@ -43,11 +47,13 @@ startInteractiveProcessViaForeignCall (exe, args) = do
   (_, stk1) <- exStackIOToIO $ foreignCall IO_process_start (VArg2 1 0) (unpackXStack stk0)
   decodeVal =<< peek stk1
 
-successfulCommand :: (FilePath, [String])
+successfulCommand :: IO (FilePath, [String])
 #ifdef mingw32_HOST_OS
-successfulCommand = ("where.exe", ["cmd.exe"])
+successfulCommand = do
+  comspec <- getEnv "COMSPEC"
+  pure (comspec, ["/C", "exit", "/B", "0"])
 #else
-successfulCommand = ("/bin/sh", ["-c", "exit 0"])
+successfulCommand = pure ("/bin/sh", ["-c", "exit 0"])
 #endif
 
 #if defined(linux_HOST_OS) || defined(darwin_HOST_OS)
