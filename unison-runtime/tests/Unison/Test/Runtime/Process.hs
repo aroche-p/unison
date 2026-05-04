@@ -50,8 +50,8 @@ startInteractiveProcessViaForeignCall (exe, args) = do
 successfulCommand :: IO (FilePath, [String])
 #ifdef mingw32_HOST_OS
 successfulCommand = do
-  comspec <- getEnv "COMSPEC"
-  pure (comspec, ["/C", "exit", "/B", "0"])
+  systemRoot <- getEnv "SystemRoot"
+  pure (systemRoot <> "\\System32\\whoami.exe", [])
 #else
 successfulCommand = pure ("/bin/sh", ["-c", "exit 0"])
 #endif
