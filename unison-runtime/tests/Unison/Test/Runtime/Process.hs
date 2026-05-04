@@ -45,7 +45,7 @@ startInteractiveProcessViaForeignCall (exe, args) = do
 
 successfulCommand :: (FilePath, [String])
 #ifdef mingw32_HOST_OS
-successfulCommand = ("cmd.exe", ["/C", "exit 0"])
+successfulCommand = ("where.exe", ["cmd.exe"])
 #else
 successfulCommand = ("/bin/sh", ["-c", "exit 0"])
 #endif
