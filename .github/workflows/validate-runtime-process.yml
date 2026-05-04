@@ -1,0 +1,34 @@
+name: validate runtime process test
+
+on:
+  push:
+    branches:
+      - validate/6175-runtime-process-matrix
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  runtime-process-test:
+    name: runtime process test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - macos-latest
+          - windows-2025
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: install stack
+        uses: unisonweb/actions/stack/install@main
+        with:
+          stack-version: 3.7.1
+
+      - name: run process runtime test
+        run: |
+          stack --version
+          stack build --fast --test unison-runtime:runtime-tests --test-arguments process
