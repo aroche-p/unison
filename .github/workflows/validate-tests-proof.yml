@@ -1,0 +1,30 @@
+name: validate tests proof
+
+on:
+  push:
+    branches:
+      - validate/6175-tests-proof
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  tests-proof:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: install stack
+        uses: unisonweb/actions/stack/install@main
+        with:
+          stack-version: 3.7.1
+
+      - name: run tests proof
+        run: ./scripts/proofs/tests.sh --force
+
+      - name: upload proof file
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
+        with:
+          name: tests-proof
+          path: .github/workflows/proofs/tests.txt
